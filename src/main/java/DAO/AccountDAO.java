@@ -5,8 +5,6 @@ import Util.ConnectionUtil;
 
 import java.sql.*;
 
-import com.azul.crs.client.Result;
-
 public class AccountDAO {
     /**
      * Retrieves an account by username
@@ -68,7 +66,7 @@ public class AccountDAO {
      * @return the inserted account with its new account_id, or null if insertion failed
      */
     public Account createAccount(Account account) {
-        Connection connection = Connection.getConnection();
+        Connection connection = ConnectionUtil.getConnection();
         try {
             String sql = "";
             PreparedStatement preparedStatement = connection.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
