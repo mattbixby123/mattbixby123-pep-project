@@ -4,18 +4,18 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import Model.Account;
 import Model.Message;
+import Service.AccountService;
+import Service.MessageService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
 /**
- * TODO: You will need to write your own endpoints and handlers for your controller. The endpoints you will need can be
- * [] /register
- * []
+ * DONE: You will need to write your own endpoints and handlers for your controller. The endpoints you will need can be
  * found in readme.md as well as the test cases. You should
  * refer to prior mini-project labs and lecture materials for guidance on how a controller may be built.
  */
@@ -41,29 +41,19 @@ public class SocialMediaController {
     }
 
     private void registerHandler(Context context) throws JsonProcessingException {
+        // OM mapper object to map json to account body of account object
         ObjectMapper mapper = new ObjectMapper();
         Account account = mapper.readValue(context.body(), Account.class);
-        //username is not blank
-        if (account.getUsername() == null || account.getUsername().trim().isEmpty()) {
-            context.status(400);
-            return;
-        }
-        //password is at least 4 characters
-        if (account.getPassword() == null || account.getPassword().length() < 4) {
-            context.status(400);
-            return;
-        }
-        // and an Account with that username does not already exist
-        // for now we have to assume that we have a wa to check if a username exists
-        boolean usernameExists = false; // Placeholder until we get the Service Layer complete
-        if (usernameExists) {
-            context.status(400);
-            return;
-        }
-        // for now we assume we can create and persist the account
-        // this will be completed once the service later is complete
-        Account createdAccount = account; /// another placeholder until we create the service later - then we will create and set the account_id
+        
+        // use the AccountService layer to register the account
+        AccountService accountService = new AccountService();
+        Account createdAccount = accountService.registerAccount(account);
 
+        // if account creation failed (already exists or else) return 400
+        if (createdAccount == null) {
+            context.status(400);
+            return;
+        }
         // return the created account
         context.status(200).json(createdAccount);
     }
@@ -73,13 +63,12 @@ public class SocialMediaController {
         Account account = mapper.readValue(context.body(), Account.class);
 
         // username match & password check 
-        // TODO: add verification once service layer is implements
-        // This will eventually check if the username and passowrd match an account int he databse
-        boolean loginSuccessful = false; // placeholder - this will be replaced with actual verification
-        Account existingAccount = null; // placeholder - this will be the account from the database which would provide  account_id, username, password
+        // Half done: add verification once service layer is implemented
+        AccountService accountService = new AccountService();
+        Account existingAccount = accountService.login(account); 
 
         // one we implement service layers and the login is successful we would be able to provide the json data upon successful login
-        if (loginSuccessful) {
+        if (existingAccount != null) {
             context.status(200).json(existingAccount);
         } else {
             context.status(401); // if login not successful we are asked to return (Unauthorized #401)
@@ -93,36 +82,24 @@ public class SocialMediaController {
         ObjectMapper mapper = new ObjectMapper();
         Message message = mapper.readValue(context.body(), Message.class);
 
-        // check if message text is blank (null or empty) - if blank return unsuccessful 400 (Client Error)
-        if (message.getMessage_text() == null || message.message_text.trim().isEmpty()) {
+        // use the MessageService to create a MS object and the message
+        MessageService messageService = new MessageService();
+        Message createdMessage = messageService.createMessage(message);
+        
+        // if message creation failed, return 400
+        if (createdMessage == null) {
             context.status(400);
             return;
         }
-        // less than or equal to 255 char
-        if (message.message_text.length() <= 255) {
-            context.status(400);
-            return;
-        }
-        // posted_by refers to a real, exisiting user - TODO: once DAO/service layer implemented
-        boolean validUser = false; // placeholder to be replaced with actual validation when able
-
-        // of the posted_by user doesnt exist
-        if (!validUser) {
-            context.status(400);
-            return;
-        }
-
-        // createMessage object to create and retrieve the message_id of the message to return in the json body
-        // 200  success message  and json of message including message_id 
-        Message createdMessage = message;
 
         // Return the created message
         context.status(200).json(createdMessage);
     }
     
     private void getAllMessagesHandler(Context context) throws JsonProcessingException {
+        MessageService messageService = new MessageService();
         // List<Message> messages object to hold
-        List<Message> messages = messageService.getAllMessages(); // TODO: implement messageService layer
+        List<Message> messages = messageService.getAllMessages(); 
         //return all messagess
         context.status(200).json(messages);
     }
@@ -131,11 +108,17 @@ public class SocialMediaController {
         // Extract message_id from path parameter
         int messageId = Integer.parseInt(context.pathParam("message_id"));
 
-        // get the message from service layer -- TODO: implement service later / DAO
+        // get the message from service layer
+        MessageService messageService = new MessageService();
         Message message = messageService.getMessageById(messageId);
 
-        // return the message with status 200
-        context.status(200).json(message);
+        // return the message with status 200 always
+        context.status(200);
+
+        // if there is a message, return it
+        if (message != null) {
+            context.json(message);
+        }
         // Note: If message is null, Javalin will return an empty body with 200 status
     }
 
@@ -143,11 +126,27 @@ public class SocialMediaController {
         // Extract message_id from path parameter
         int messageId = Integer.parseInt(context.pathParam("message_id"));
 
-        Message deletedMessage = messageService.deleteMessage(messageId); // TODO: implemenet service and DAO layers
+        // Debug: Print message ID
+        // System.out.println("Deleting message with ID: " + messageId);
+
+        // call the service layer to delete the message
+        MessageService messageService = new MessageService();
+        Message deletedMessage = messageService.deleteMessage(messageId); 
+
+        // Debug: Check if message was found
+        // System.out.println("Deleted message: " + deletedMessage);
 
         // Javalin will return with a status code of 200 always, 
         // if the message doesnt exist Javalin will return an empty body
-        context.status(200).json(deletedMessage);
+        if (deletedMessage != null) {
+            // Debug: Print JSON
+            // String json = new ObjectMapper().writeValueAsString(deletedMessage);
+            // System.out.println("JSON to return: " + json);
+
+            context.json(deletedMessage);
+        } else {
+            context.status(200);
+        }
     }
 
     private void patchMessageByIdHandler(Context context) throws JsonProcessingException {
@@ -162,7 +161,8 @@ public class SocialMediaController {
         String newMessageText = requestMap.get("message_text");
 
         // call the service layer to update the message
-        Message updatedMessage = messageService.updatedMessageText(messageId, newMessageText); // TODO: create DAO/service layer
+        MessageService messageService = new MessageService();
+        Message updatedMessage = messageService.updateMessageText(messageId, newMessageText); 
 
         // if the message update was successful (not null), return 200 with the updated message
         if (updatedMessage != null) {
@@ -179,7 +179,8 @@ public class SocialMediaController {
         int accountId = Integer.parseInt(context.pathParam("account_id"));
 
         // get all message from the user via the service layer
-        List<Message> userMessages = messageService.getMessagesByUser(accountId); // TODO : implement messageServe
+        MessageService messageService = new MessageService();
+        List<Message> userMessages = messageService.getMessagesByUser(accountId); 
 
         // return the message in json with status 200
         context.status(200).json(userMessages);

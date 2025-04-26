@@ -68,7 +68,7 @@ public class AccountDAO {
     public Account createAccount(Account account) {
         Connection connection = ConnectionUtil.getConnection();
         try {
-            String sql = "";
+            String sql = "INSERT INTO account (username, password) VALUES(?, ?)";
             PreparedStatement preparedStatement = connection.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
             preparedStatement.setString(1, account.getUsername());
             preparedStatement.setString(2, account.getPassword());
